@@ -5,37 +5,55 @@ const asyncHandler = require("../utils/asyncHandler");
 const { signToken, getCookieOptions } = require("../utils/jwt");
 const { requireAuth } = require("../middleware/auth");
 const { authLimiter } = require("../middleware/rateLimit");
+const {
+  validate,
+  registerSchema,
+  loginSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+} = require("../middleware/validate");
 const env = require("../config/env");
 
 const router = express.Router();
 
 /**
- * POST /api/auth/register
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new candidate account
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, password]
+ *             properties:
+ *               name: { type: string, example: "Alex Johnson" }
+ *               email: { type: string, format: email, example: "alex@example.com" }
+ *               password: { type: string, minLength: 8, example: "Password123!" }
+ *     responses:
+ *       201:
+ *         description: Account created successfully with auth cookie set.
+ *       400:
+ *         description: Validation failed or email already registered.
  */
 router.post(
   "/register",
   authLimiter,
+  validate(registerSchema),
   asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body || {};
+    const { name, email, password } = req.body;
 
-    if (!name || typeof name !== "string" || name.trim().length < 2) {
-      throw ApiError.badRequest("Please provide a valid name (at least 2 characters)");
-    }
-    if (!email || typeof email !== "string" || !/^\S+@\S+\.\S+$/.test(email.trim())) {
-      throw ApiError.badRequest("Please provide a valid email address");
-    }
-    if (!password || typeof password !== "string" || password.length < 8) {
-      throw ApiError.badRequest("Password must be at least 8 characters long");
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
       throw ApiError.badRequest("An account with this email already exists");
     }
 
     const user = await User.create({
-      name: name.trim(),
+      name,
       email: normalizedEmail,
       password,
     });
@@ -48,19 +66,35 @@ router.post(
 );
 
 /**
- * POST /api/auth/login
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     summary: Authenticate user and issue JWT cookie
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email, example: "alex@example.com" }
+ *               password: { type: string, example: "Password123!" }
+ *     responses:
+ *       200:
+ *         description: Successfully authenticated.
+ *       401:
+ *         description: Invalid credentials.
  */
 router.post(
   "/login",
   authLimiter,
+  validate(loginSchema),
   asyncHandler(async (req, res) => {
-    const { email, password } = req.body || {};
+    const { email, password } = req.body;
 
-    if (!email || !password) {
-      throw ApiError.badRequest("Please provide both email and password");
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.toLowerCase();
     const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
     if (!user) {
@@ -80,7 +114,14 @@ router.post(
 );
 
 /**
- * POST /api/auth/logout
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     summary: Log out user and clear session cookie
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Session terminated successfully.
  */
 router.post(
   "/logout",
@@ -94,7 +135,16 @@ router.post(
 );
 
 /**
- * GET /api/auth/me
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     summary: Retrieve currently authenticated profile
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: User profile payload.
+ *       401:
+ *         description: Unauthenticated.
  */
 router.get(
   "/me",
@@ -105,19 +155,31 @@ router.get(
 );
 
 /**
- * PATCH /api/auth/profile
+ * @openapi
+ * /api/auth/profile:
+ *   patch:
+ *     summary: Update user profile display information
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string, minLength: 2, example: "Alex C. Johnson" }
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully.
  */
 router.patch(
   "/profile",
   requireAuth,
+  validate(updateProfileSchema),
   asyncHandler(async (req, res) => {
-    const { name } = req.body || {};
+    const { name } = req.body;
 
-    if (!name || typeof name !== "string" || name.trim().length < 2) {
-      throw ApiError.badRequest("Display name must be at least 2 characters");
-    }
-
-    req.user.name = name.trim();
+    req.user.name = name;
     await req.user.save();
 
     res.json({ user: req.user.toJSON() });
@@ -125,20 +187,33 @@ router.patch(
 );
 
 /**
- * PATCH /api/auth/password
+ * @openapi
+ * /api/auth/password:
+ *   patch:
+ *     summary: Change user password
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200:
+ *         description: Password updated successfully.
+ *       400:
+ *         description: Incorrect current password or invalid new password.
  */
 router.patch(
   "/password",
   requireAuth,
+  validate(changePasswordSchema),
   asyncHandler(async (req, res) => {
-    const { currentPassword, newPassword } = req.body || {};
-
-    if (!currentPassword || !newPassword) {
-      throw ApiError.badRequest("Both current password and new password are required");
-    }
-    if (typeof newPassword !== "string" || newPassword.length < 8) {
-      throw ApiError.badRequest("New password must be at least 8 characters long");
-    }
+    const { currentPassword, newPassword } = req.body;
 
     const userWithPassword = await User.findById(req.user._id).select("+password");
     const isMatch = await userWithPassword.comparePassword(currentPassword);
@@ -155,4 +230,3 @@ router.patch(
 );
 
 module.exports = router;
-

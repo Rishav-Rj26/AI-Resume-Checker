@@ -12,6 +12,7 @@ const { extractTextFromPdf } = require("../services/pdfService");
 const { parseResumeSections } = require("../services/structuredParser");
 const { analyzeResume } = require("../services/geminiService");
 const { computeDiff, serializeResumeSections } = require("../services/diffService");
+const { validate, analyzeSchema, rewriteSchema } = require("../middleware/validate");
 
 const router = express.Router();
 
@@ -249,6 +250,7 @@ router.get(
 router.post(
   "/:id/analyze",
   aiLimiter,
+  validate(analyzeSchema),
   asyncHandler(async (req, res) => {
     const resume = await Resume.findOne({ _id: req.params.id, userId: req.user._id });
     if (!resume) throw ApiError.notFound("Resume not found");
@@ -318,6 +320,7 @@ router.post(
 router.post(
   "/:id/rewrite",
   aiLimiter,
+  validate(rewriteSchema),
   asyncHandler(async (req, res) => {
     const resume = await Resume.findOne({ _id: req.params.id, userId: req.user._id });
     if (!resume) throw ApiError.notFound("Resume not found");
