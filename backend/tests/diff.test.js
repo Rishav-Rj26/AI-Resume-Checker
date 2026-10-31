@@ -79,3 +79,4 @@ describe("Version Diffing Engine", () => {
     expect(diff.stats.added).toBeGreaterThan(0);
   });
 });
+

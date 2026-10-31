@@ -35,3 +35,4 @@ describe("Health & Documentation Endpoints", () => {
     expect(res.body.error.message).toContain("Route not found");
   });
 });
+

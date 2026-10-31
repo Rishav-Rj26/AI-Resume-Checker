@@ -180,3 +180,4 @@ docker-compose up --build
 * **Tiered Rate Limiting**: Dedicated rate limiters for Authentication (`40 req / 15m`), AI Scoring (`50 req / 15m`), and File Uploads (`30 req / 15m`).
 * **Zero Trust Data Isolation**: Multi-tenant database queries enforce `userId: req.user._id` across every resume and version lookup.
 * **HTTP-Only Cookies**: Prevents client-side XSS access to authentication tokens.
+

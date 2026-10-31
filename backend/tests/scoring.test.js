@@ -73,3 +73,4 @@ describe("ATS Scoring & Diagnostics Engine", () => {
     expect(firstRewrite.rewritten.length).toBeGreaterThan(firstRewrite.original.length);
   });
 });
+
