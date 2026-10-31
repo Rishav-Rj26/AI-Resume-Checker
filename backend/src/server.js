@@ -9,6 +9,11 @@ const ApiError = require("./utils/ApiError");
 // Route imports
 const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
+const resumesRoutes = require("./routes/resumes");
+const dashboardRoutes = require("./routes/dashboard");
+const insightsRoutes = require("./routes/insights");
+const versionsRoutes = require("./routes/versions");
+const historyRoutes = require("./routes/history");
 
 const app = express();
 
@@ -35,69 +40,13 @@ app.use(cookieParser());
 app.use("/api/health", healthRoutes);
 app.use("/health", healthRoutes);
 
-// Auth Routes
+// Core API Routes
 app.use("/api/auth", authRoutes);
-
-// Placeholder routes for subsequent phases
-app.use("/api/resumes", (req, res, next) => {
-  try {
-    const resumesRoute = require("./routes/resumes");
-    return resumesRoute(req, res, next);
-  } catch (err) {
-    if (err.code === "MODULE_NOT_FOUND" && err.message.includes("./routes/resumes")) {
-      return next(ApiError.notFound("Resumes route will be activated in Phase 3/4"));
-    }
-    return next(err);
-  }
-});
-
-app.use("/api/dashboard", (req, res, next) => {
-  try {
-    const dashboardRoute = require("./routes/dashboard");
-    return dashboardRoute(req, res, next);
-  } catch (err) {
-    if (err.code === "MODULE_NOT_FOUND" && err.message.includes("./routes/dashboard")) {
-      return next(ApiError.notFound("Dashboard route will be activated in Phase 6"));
-    }
-    return next(err);
-  }
-});
-
-app.use("/api/insights", (req, res, next) => {
-  try {
-    const insightsRoute = require("./routes/insights");
-    return insightsRoute(req, res, next);
-  } catch (err) {
-    if (err.code === "MODULE_NOT_FOUND" && err.message.includes("./routes/insights")) {
-      return next(ApiError.notFound("Insights route will be activated in Phase 6"));
-    }
-    return next(err);
-  }
-});
-
-app.use("/api/versions", (req, res, next) => {
-  try {
-    const versionsRoute = require("./routes/versions");
-    return versionsRoute(req, res, next);
-  } catch (err) {
-    if (err.code === "MODULE_NOT_FOUND" && err.message.includes("./routes/versions")) {
-      return next(ApiError.notFound("Versions route will be activated in Phase 6"));
-    }
-    return next(err);
-  }
-});
-
-app.use("/api/history", (req, res, next) => {
-  try {
-    const historyRoute = require("./routes/history");
-    return historyRoute(req, res, next);
-  } catch (err) {
-    if (err.code === "MODULE_NOT_FOUND" && err.message.includes("./routes/history")) {
-      return next(ApiError.notFound("History route will be activated in Phase 6"));
-    }
-    return next(err);
-  }
-});
+app.use("/api/resumes", resumesRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/insights", insightsRoutes);
+app.use("/api/versions", versionsRoutes);
+app.use("/api/history", historyRoutes);
 
 // 404 Handler for undefined routes
 app.use((req, res, next) => {

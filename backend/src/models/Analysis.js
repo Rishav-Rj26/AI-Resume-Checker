@@ -50,7 +50,7 @@ const analysisSchema = new mongoose.Schema(
         title: { type: String, required: true },
         severity: {
           type: String,
-          enum: ["high", "medium", "low"],
+          enum: ["high", "medium", "med", "low"],
           default: "medium",
         },
         fix: { type: String, required: true },

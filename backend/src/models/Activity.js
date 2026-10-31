@@ -21,7 +21,7 @@ const activitySchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["upload", "analyze", "rewrite", "export"],
+      enum: ["upload", "analyze", "analysis", "rewrite", "export"],
       required: true,
       index: true,
     },
