@@ -1,5 +1,6 @@
 const ApiError = require("../utils/ApiError");
 const env = require("../config/env");
+const logger = require("../config/logger");
 
 const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
@@ -39,7 +40,9 @@ const errorHandler = (err, req, res, next) => {
 
   // Log 500 internal errors for debugging
   if (statusCode >= 500) {
-    console.error(`[Server Error 500] ${req.method} ${req.originalUrl}:`, err);
+    logger.error(`${req.method} ${req.originalUrl} - ${statusCode}: ${err.message}`, {
+      stack: err.stack,
+    });
   }
 
   res.status(statusCode).json({

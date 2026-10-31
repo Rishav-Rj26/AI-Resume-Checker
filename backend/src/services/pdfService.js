@@ -1,5 +1,23 @@
-const { extractText } = require("unpdf");
 const ApiError = require("../utils/ApiError");
+
+let unpdfExtractor = null;
+
+async function getExtractText() {
+  if (!unpdfExtractor) {
+    try {
+      const mod = await import("unpdf");
+      unpdfExtractor = mod.extractText;
+    } catch {
+      try {
+        const mod = require("unpdf");
+        unpdfExtractor = mod.extractText;
+      } catch {
+        // Will fall back to pdf-parse
+      }
+    }
+  }
+  return unpdfExtractor;
+}
 
 /**
  * Extracts plain text and page metadata from an in-memory PDF buffer.
@@ -20,48 +38,53 @@ const extractTextFromPdf = async (buffer) => {
     buffer.byteLength || buffer.length
   );
 
-  try {
-    const { text, totalPages } = await extractText(uint8Data);
-    const combinedText = Array.isArray(text) ? text.join("\n").trim() : String(text || "").trim();
+  const extractText = await getExtractText();
 
-    if (!combinedText || combinedText.length < 15) {
+  if (extractText) {
+    try {
+      const { text, totalPages } = await extractText(uint8Data);
+      const combinedText = Array.isArray(text) ? text.join("\n").trim() : String(text || "").trim();
+
+      if (combinedText && combinedText.length >= 15) {
+        return {
+          text: combinedText,
+          pageCount: totalPages || 1,
+          info: {},
+        };
+      }
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      if (err.message && /password|encrypted/i.test(err.message)) {
+        throw ApiError.badRequest(
+          "Password-protected or encrypted PDFs are not supported. Please remove the password and re-upload."
+        );
+      }
+    }
+  }
+
+  // Secondary fallback with pdf-parse
+  try {
+    const pdfParse = require("pdf-parse");
+    const fallbackData = await pdfParse(buffer);
+    const cleaned = (fallbackData.text || "").trim();
+
+    if (!cleaned || cleaned.length < 15) {
       throw ApiError.badRequest(
         "The uploaded PDF does not contain enough readable text. Please upload a standard text PDF rather than an un-OCRed scan."
       );
     }
 
     return {
-      text: combinedText,
-      pageCount: totalPages || 1,
-      info: {},
+      text: cleaned,
+      pageCount: fallbackData.numpages || 1,
+      info: fallbackData.info || {},
     };
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-
-    if (err.message && /password|encrypted/i.test(err.message)) {
-      throw ApiError.badRequest(
-        "Password-protected or encrypted PDFs are not supported. Please remove the password and re-upload."
-      );
-    }
-
-    // Try secondary fallback with pdf-parse if unpdf encountered an unexpected issue
-    try {
-      const pdfParse = require("pdf-parse");
-      const fallbackData = await pdfParse(buffer);
-      const fallbackText = fallbackData.text ? fallbackData.text.trim() : "";
-      if (fallbackText && fallbackText.length >= 15) {
-        return {
-          text: fallbackText,
-          pageCount: fallbackData.numpages || 1,
-          info: fallbackData.info || {},
-        };
-      }
-    } catch (_) {
-      // Ignore secondary error, throw primary descriptive error
-    }
-
-    throw ApiError.badRequest(`Failed to read PDF document: ${err.message}`);
+  } catch (parseErr) {
+    if (parseErr instanceof ApiError) throw parseErr;
+    throw ApiError.badRequest(`Could not parse PDF content: ${parseErr.message}`);
   }
 };
 
-module.exports = { extractTextFromPdf };
+module.exports = {
+  extractTextFromPdf,
+};

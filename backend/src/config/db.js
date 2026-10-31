@@ -1,12 +1,13 @@
 const dns = require("dns");
 const mongoose = require("mongoose");
 const env = require("./env");
+const logger = require("./logger");
 
 // Ensure Node.js resolves MongoDB Atlas SRV records reliably regardless of local ISP DNS
 try {
   dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 } catch (e) {
-  console.warn("[DNS] Could not set custom DNS servers, using system default:", e.message);
+  logger.warn(`Could not set custom DNS servers, using system default: ${e.message}`);
 }
 
 let isConnecting = false;
@@ -29,22 +30,22 @@ const connectDB = async () => {
     const conn = await mongoose.connect(primaryUri, {
       serverSelectionTimeoutMS: 10000,
     });
-    console.log(`[MongoDB] Connected to database: ${conn.connection.host}`);
+    logger.info(`Connected to MongoDB: ${conn.connection.host}`);
     return conn;
   } catch (err) {
-    console.warn(`[MongoDB] Connection to primary URI failed: ${err.message}`);
+    logger.warn(`Connection to primary MongoDB failed: ${err.message}`);
 
     // If remote connection fails, provide fallback to local MongoDB
     if (!primaryUri.includes("127.0.0.1") && !primaryUri.includes("localhost")) {
-      console.log("[MongoDB] Attempting fallback to local MongoDB (mongodb://127.0.0.1:27017/ai_resume_checker)...");
+      logger.info("Attempting fallback to local MongoDB (mongodb://127.0.0.1:27017/ai_resume_checker)...");
       try {
         const localConn = await mongoose.connect("mongodb://127.0.0.1:27017/ai_resume_checker", {
           serverSelectionTimeoutMS: 4000,
         });
-        console.log(`[MongoDB] Fallback connected to local database: ${localConn.connection.host}`);
+        logger.info(`Fallback connected to local database: ${localConn.connection.host}`);
         return localConn;
       } catch (localErr) {
-        console.error(`[MongoDB] Local fallback failed: ${localErr.message}`);
+        logger.error(`Local MongoDB fallback failed: ${localErr.message}`);
         throw err;
       }
     }
@@ -55,11 +56,7 @@ const connectDB = async () => {
 };
 
 mongoose.connection.on("disconnected", () => {
-  console.warn("[MongoDB] Disconnected from database");
-});
-
-mongoose.connection.on("error", (err) => {
-  console.error(`[MongoDB] Error: ${err.message}`);
+  logger.warn("Disconnected from MongoDB database");
 });
 
 module.exports = { connectDB };
