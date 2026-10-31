@@ -1,0 +1,57 @@
+services:
+  mongodb:
+    image: mongo:7-jammy
+    container_name: resume-checker-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: resume_checker
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - resume-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resume-checker-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/resume_checker
+      - JWT_SECRET=change_this_to_a_production_random_secret_key_12345
+      - JWT_EXPIRES=7d
+      - COOKIE_NAME=arr_token
+      - CLIENT_ORIGIN=http://localhost,http://localhost:80,http://localhost:5173
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=gemini-3.1-flash-lite
+    depends_on:
+      - mongodb
+    networks:
+      - resume-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resume-checker-client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - resume-network
+
+networks:
+  resume-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local

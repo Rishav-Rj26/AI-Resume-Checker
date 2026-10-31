@@ -40,7 +40,9 @@ app.use(
 );
 
 // CORS Policy
-const allowedOrigins = env.CLIENT_ORIGIN.split(",").map((o) => o.trim());
+const allowedOrigins = Array.isArray(env.CLIENT_ORIGIN)
+  ? env.CLIENT_ORIGIN
+  : String(env.CLIENT_ORIGIN || "").split(",").map((o) => o.trim());
 app.use(
   cors({
     origin: (origin, callback) => {
